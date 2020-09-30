@@ -15,6 +15,7 @@ import {
   Text,
   StatusBar,
 } from 'react-native';
+import {KeyTool, makeSynchronizer} from 'react-native-zcash';
 
 import {
   Header,
@@ -27,12 +28,22 @@ import {
 class App extends Component {
   state = {textString: ''};
   log(arg) {
-    this.setState({textString: this.state.textString + arg});
+    this.setState({textString: this.state.textString + arg + '\n'});
   }
   async componentDidMount() {
-    setTimeout(() => {
-      this.log('hello world');
-    }, 5000);
+    const seedBytesHex = '0xafdfcbe42f2bdf';
+    this.log(`seedBytesHex ${seedBytesHex}`);
+    const viewKey = await KeyTool.deriveViewKey(seedBytesHex);
+    this.log(`viewKey ${viewKey}`);
+    const initializer = {
+      host: 'zcash.edge.app',
+      port: 80,
+      fullViewingKey: viewKey,
+      birthdayHeight: 1000,
+    };
+    const synchronizer = await makeSynchronizer(initializer);
+    const shieldedBalance = await synchronizer.getShieldedBalance();
+    this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
   }
   render() {
     return (
