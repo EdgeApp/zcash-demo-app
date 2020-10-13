@@ -33,7 +33,9 @@ class App extends Component {
   async componentDidMount() {
     const seedBytesHex = '0xafdfcbe42f2bdf';
     this.log(`seedBytesHex ${seedBytesHex}`);
-    const viewKey = await KeyTool.deriveViewKey(seedBytesHex);
+    const viewKey = await KeyTool.deriveViewKey(seedBytesHex).catch((e) => {
+      this.log('Failed to derive viewingKey due to: ' + e);
+    });
     this.log(`viewKey ${viewKey}`);
     const initializer = {
       host: 'zcash.edge.app',
