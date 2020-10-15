@@ -26,27 +26,71 @@ import {
 } from 'react-native/Libraries/NewAppScreen';
 
 class App extends Component {
-  state = {textString: ''};
+  state = {
+    textString: '',
+    status: '',
+    totalBalance: '',
+    transactionCount: '',
+    updateEvent: {},
+  };
   log(arg) {
     this.setState({textString: this.state.textString + arg + '\n'});
   }
+
+  onProcessorUpdate = (event) => {
+    this.log(`got event: ${event}`);
+  };
+
   async componentDidMount() {
-    const seedBytesHex = '0xafdfcbe42f2bdf';
+    // actual seed from the demo wallet
+    const seedBytesHex =
+      'bfd59d293d79ffac7c572233c8364f9053e4cef61d2d494cb6e9cd55b586a34cd01aba51fdbc59031d8bc64f35865fd87ca7d5ba3b5bec26e7c00ce91ec31dbd';
     this.log(`seedBytesHex ${seedBytesHex}`);
-    const viewKey = await KeyTool.deriveViewKey(seedBytesHex).catch((e) => {
-      this.log('Failed to derive viewingKey due to: ' + e);
-    });
-    this.log(`viewKey ${viewKey}`);
-    const initializer = {
-      host: 'zcash.edge.app',
-      port: 80,
-      fullViewingKey: viewKey,
-      birthdayHeight: 1000,
-    };
-    const synchronizer = await makeSynchronizer(initializer);
-    const shieldedBalance = await synchronizer.getShieldedBalance();
-    this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
+
+    try {
+      const spendingKey = await KeyTool.deriveSpendingKey(seedBytesHex);
+      this.log(`spendingKey ${spendingKey}`);
+
+      const viewingKey = await KeyTool.deriveViewingKey(seedBytesHex);
+      this.log(`viewingKey ${viewingKey}`);
+
+      const initializer = {
+        fullViewingKey: viewingKey,
+        birthdayHeight: 968000,
+        alias: 'user5_account0',
+      };
+
+      this.log('making synchronizer...');
+      const synchronizer = await makeSynchronizer(initializer);
+      synchronizer.subscribeToBalance((event) => {
+        this.setState({totalBalance: event.total});
+      });
+      synchronizer.subscribeToStatus((event) => {
+        this.setState({status: event.name});
+      });
+      synchronizer.subscribeToTransactions((event) => {
+        this.setState({transactionCount: event.transactionCount});
+      });
+      synchronizer.subscribeToUpdates((event) => {
+        this.setState({
+          updateEvent: {
+            isDownloading: event.isDownloading,
+            isScanning: event.isScanning,
+            lastDownloadedHeight: event.lastDownloadedHeight,
+            lastScannedHeight: event.lastScannedHeight,
+            scanProgress: event.scanProgress,
+            networkBlockHeight: event.networkBlockHeight,
+          },
+        });
+      });
+      this.log('synchronizer created!');
+      this.log('syncing...');
+      await synchronizer.start();
+    } catch (err) {
+      this.log('Failed to initialize due to: ' + err);
+    }
   }
+
   render() {
     return (
       <>
@@ -57,6 +101,19 @@ class App extends Component {
             style={styles.scrollView}
           />
           <Text>{this.state.textString}</Text>
+          <Text>status: {this.state.status}</Text>
+          <Text>transaction count: {this.state.transactionCount}</Text>
+          <Text>shielded balance: {this.state.totalBalance + '\n'}</Text>
+          <Text>
+            network height: {this.state.updateEvent.networkBlockHeight}
+          </Text>
+          <Text>scan progress: {this.state.updateEvent.scanProgress}%</Text>
+          <Text>
+            downloaded height: {this.state.updateEvent.lastDownloadedHeight}
+          </Text>
+          <Text>
+            scanned height: {this.state.updateEvent.lastScannedHeight}
+          </Text>
         </SafeAreaView>
       </>
     );
