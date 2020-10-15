@@ -64,7 +64,7 @@ class App extends Component {
       this.log('making synchronizer...');
       const synchronizer = await makeSynchronizer(initializer);
       synchronizer.subscribeToBalance((event) => {
-        this.setState({totalBalance: event.total});
+        this.setState({totalBalance: event.totalZatoshi});
       });
       synchronizer.subscribeToStatus((event) => {
         this.setState({status: event.name});
@@ -94,7 +94,8 @@ class App extends Component {
       const tAddrValid = await AddressTool.isValidTransparentAddress(tAddr);
       this.log(`t-addr ${tAddr} (${tAddrValid})`);
 
-      this.log('syncing...');
+      const blockHeight = await synchronizer.getLatestNetworkHeight();
+      this.log(`syncing...(initial block height: ${blockHeight})`);
       await synchronizer.start();
     } catch (err) {
       this.log('Failed to initialize due to: ' + err);
@@ -108,22 +109,24 @@ class App extends Component {
         <SafeAreaView>
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
-            style={styles.scrollView}
-          />
-          <Text>{this.state.textString}</Text>
-          <Text>status: {this.state.status}</Text>
-          <Text>transaction count: {this.state.transactionCount}</Text>
-          <Text>shielded balance: {this.state.totalBalance + '\n'}</Text>
-          <Text>
-            network height: {this.state.updateEvent.networkBlockHeight}
-          </Text>
-          <Text>scan progress: {this.state.updateEvent.scanProgress}%</Text>
-          <Text>
-            downloaded height: {this.state.updateEvent.lastDownloadedHeight}
-          </Text>
-          <Text>
-            scanned height: {this.state.updateEvent.lastScannedHeight}
-          </Text>
+            style={styles.scrollView}>
+            <Text>{this.state.textString}</Text>
+            <Text>status: {this.state.status}</Text>
+            <Text>transaction count: {this.state.transactionCount}</Text>
+            <Text>
+              shielded balance (zatoshi): {this.state.totalBalance + '\n'}
+            </Text>
+            <Text>
+              network height: {this.state.updateEvent.networkBlockHeight}
+            </Text>
+            <Text>scan progress: {this.state.updateEvent.scanProgress}%</Text>
+            <Text>
+              downloaded height: {this.state.updateEvent.lastDownloadedHeight}
+            </Text>
+            <Text>
+              scanned height: {this.state.updateEvent.lastScannedHeight}
+            </Text>
+          </ScrollView>
         </SafeAreaView>
       </>
     );
