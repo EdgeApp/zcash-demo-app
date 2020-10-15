@@ -15,7 +15,13 @@ import {
   Text,
   StatusBar,
 } from 'react-native';
-import {KeyTool, AddressTool, makeSynchronizer} from 'react-native-zcash';
+import {
+  makeSynchronizer,
+  AddressTool,
+  KeyTool,
+  SynchronizerCallbacks,
+  SynchronizerStatus,
+} from 'react-native-zcash';
 
 import {
   Header,
@@ -63,27 +69,22 @@ class App extends Component {
 
       this.log('making synchronizer...');
       const synchronizer = await makeSynchronizer(initializer);
-      synchronizer.subscribeToBalance((event) => {
-        this.setState({totalBalance: event.totalZatoshi});
+
+      synchronizer.subscribe({
+        onShieldedBalanceChanged: (walletBalance) => {
+          this.onShieldedBalanceChanged(walletBalance);
+        },
+        onStatusChanged: (status) => {
+          this.onStatusChanged(status);
+        },
+        onTransactionsChanged: (event) => {
+          this.onTransactionsChanged(event);
+        },
+        onUpdate: (updateEvent) => {
+          this.onUpdate(updateEvent);
+        },
       });
-      synchronizer.subscribeToStatus((event) => {
-        this.setState({status: event.name});
-      });
-      synchronizer.subscribeToTransactions((event) => {
-        this.setState({transactionCount: event.transactionCount});
-      });
-      synchronizer.subscribeToUpdates((event) => {
-        this.setState({
-          updateEvent: {
-            isDownloading: event.isDownloading,
-            isScanning: event.isScanning,
-            lastDownloadedHeight: event.lastDownloadedHeight,
-            lastScannedHeight: event.lastScannedHeight,
-            scanProgress: event.scanProgress,
-            networkBlockHeight: event.networkBlockHeight,
-          },
-        });
-      });
+
       this.log('synchronizer created!');
 
       const zAddr = await AddressTool.deriveShieldedAddress(viewingKey);
@@ -100,6 +101,33 @@ class App extends Component {
     } catch (err) {
       this.log('Failed to initialize due to: ' + err);
     }
+  }
+
+  async componentWillUnmount() {
+    this.synchronizer.stop();
+  }
+
+  onShieldedBalanceChanged(walletBalance) {
+    this.setState({totalBalance: walletBalance.totalZatoshi});
+  }
+  onStatusChanged(status) {
+    // TODO: map from status.name to SynchronizerStatus enum (using SynchronizerStatus[status.name] doesn't work)
+    this.setState({status: status.name});
+  }
+  onTransactionsChanged(event) {
+    this.setState({transactionCount: event.transactionCount});
+  }
+  onUpdate(event) {
+    this.setState({
+      updateEvent: {
+        isDownloading: event.isDownloading,
+        isScanning: event.isScanning,
+        lastDownloadedHeight: event.lastDownloadedHeight,
+        lastScannedHeight: event.lastScannedHeight,
+        scanProgress: event.scanProgress,
+        networkBlockHeight: event.networkBlockHeight,
+      },
+    });
   }
 
   render() {
