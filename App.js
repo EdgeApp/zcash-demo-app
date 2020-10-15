@@ -15,7 +15,7 @@ import {
   Text,
   StatusBar,
 } from 'react-native';
-import {KeyTool, makeSynchronizer} from 'react-native-zcash';
+import {KeyTool, AddressTool, makeSynchronizer} from 'react-native-zcash';
 
 import {
   Header,
@@ -57,6 +57,7 @@ class App extends Component {
       const initializer = {
         fullViewingKey: viewingKey,
         birthdayHeight: 968000,
+        // change this value to effectively "delete" the app data and re-test the load sequence
         alias: 'user5_account0',
       };
 
@@ -84,6 +85,15 @@ class App extends Component {
         });
       });
       this.log('synchronizer created!');
+
+      const zAddr = await AddressTool.deriveShieldedAddress(viewingKey);
+      const zAddrValid = await AddressTool.isValidShieldedAddress(zAddr);
+      this.log(`z-addr ${zAddr} (${zAddrValid})`);
+
+      const tAddr = await AddressTool.deriveTransparentAddress(seedBytesHex);
+      const tAddrValid = await AddressTool.isValidTransparentAddress(tAddr);
+      this.log(`t-addr ${tAddr} (${tAddrValid})`);
+
       this.log('syncing...');
       await synchronizer.start();
     } catch (err) {
