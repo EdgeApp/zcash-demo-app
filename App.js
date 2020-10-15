@@ -83,6 +83,9 @@ class App extends Component {
         onUpdate: (updateEvent) => {
           this.onUpdate(updateEvent);
         },
+        onPendingTransactionUpdated: (tx) => {
+          this.onPendingTransactionUpdated(tx);
+        },
       });
 
       this.log('synchronizer created!');
@@ -98,6 +101,12 @@ class App extends Component {
       const blockHeight = await synchronizer.getLatestNetworkHeight();
       this.log(`syncing...(initial block height: ${blockHeight})`);
       await synchronizer.start();
+      const doSend = await synchronizer.readyToSend();
+      if (doSend) {
+        this.log('sending test transaction (that should fail)...');
+        await synchronizer.sendTestTransaction(spendingKey, zAddr);
+        this.log('done sending');
+      }
     } catch (err) {
       this.log('Failed to initialize due to: ' + err);
     }
@@ -116,6 +125,9 @@ class App extends Component {
   }
   onTransactionsChanged(event) {
     this.setState({transactionCount: event.transactionCount});
+  }
+  onPendingTransactionUpdated(tx) {
+    this.log(`pending tx updated: ${JSON.stringify(tx)}`);
   }
   onUpdate(event) {
     this.setState({
