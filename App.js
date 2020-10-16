@@ -15,7 +15,13 @@ import {
   Text,
   StatusBar,
 } from 'react-native';
-import {KeyTool, makeSynchronizer} from 'react-native-zcash';
+import {
+  makeSynchronizer,
+  AddressTool,
+  KeyTool,
+  SynchronizerCallbacks,
+  SynchronizerStatus,
+} from 'react-native-zcash';
 
 import {
   Header,
@@ -26,25 +32,128 @@ import {
 } from 'react-native/Libraries/NewAppScreen';
 
 class App extends Component {
-  state = {textString: ''};
+  state = {
+    textString: '',
+    status: '',
+    totalBalance: '',
+    transactionCount: '',
+    updateEvent: {},
+  };
   log(arg) {
     this.setState({textString: this.state.textString + arg + '\n'});
   }
+
+  onProcessorUpdate = (event) => {
+    this.log(`got event: ${event}`);
+  };
+
   async componentDidMount() {
-    const seedBytesHex = '0xafdfcbe42f2bdf';
+    // actual seed from the demo wallet
+    const seedBytesHex =
+      'bfd59d293d79ffac7c572233c8364f9053e4cef61d2d494cb6e9cd55b586a34cd01aba51fdbc59031d8bc64f35865fd87ca7d5ba3b5bec26e7c00ce91ec31dbd';
     this.log(`seedBytesHex ${seedBytesHex}`);
-    const viewKey = await KeyTool.deriveViewKey(seedBytesHex);
-    this.log(`viewKey ${viewKey}`);
-    const initializer = {
-      host: 'zcash.edge.app',
-      port: 80,
-      fullViewingKey: viewKey,
-      birthdayHeight: 1000,
-    };
-    const synchronizer = await makeSynchronizer(initializer);
-    const shieldedBalance = await synchronizer.getShieldedBalance();
-    this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
+
+    try {
+      const spendingKey = await KeyTool.deriveSpendingKey(seedBytesHex);
+      this.log(`spendingKey ${spendingKey}`);
+
+      const viewingKey = await KeyTool.deriveViewingKey(seedBytesHex);
+      this.log(`viewingKey ${viewingKey}`);
+
+      const initializer = {
+        fullViewingKey: viewingKey,
+        birthdayHeight: 968000,
+        // change this value to effectively "delete" the app data and re-test the load sequence
+        alias: 'user5_account0',
+      };
+
+      this.log('making synchronizer...');
+      const synchronizer = await makeSynchronizer(initializer);
+
+      synchronizer.subscribe({
+        onShieldedBalanceChanged: (walletBalance) => {
+          this.onShieldedBalanceChanged(walletBalance);
+        },
+        onStatusChanged: (status) => {
+          this.onStatusChanged(status);
+        },
+        onTransactionsChanged: (event) => {
+          this.onTransactionsChanged(event);
+        },
+        onUpdate: (updateEvent) => {
+          this.onUpdate(updateEvent);
+        },
+        onPendingTransactionUpdated: (tx) => {
+          this.onPendingTransactionUpdated(tx);
+        },
+      });
+
+      this.log('synchronizer created!');
+
+      const zAddr = await AddressTool.deriveShieldedAddress(viewingKey);
+      const zAddrValid = await AddressTool.isValidShieldedAddress(zAddr);
+      this.log(`z-addr ${zAddr} (${zAddrValid})`);
+
+      const tAddr = await AddressTool.deriveTransparentAddress(seedBytesHex);
+      const tAddrValid = await AddressTool.isValidTransparentAddress(tAddr);
+      this.log(`t-addr ${tAddr} (${tAddrValid})`);
+
+      const blockHeight = await synchronizer.getLatestNetworkHeight();
+      this.log(`syncing...(initial block height: ${blockHeight})`);
+      await synchronizer.start();
+      const doSend = await synchronizer.readyToSend();
+      if (doSend) {
+        this.log('sending test transaction (that should fail)...');
+        await synchronizer.sendTestTransaction(spendingKey, zAddr);
+        this.log('done sending');
+      }
+      const bCount = await synchronizer.getBlockCount();
+      this.log(`testing custom database!  block count: ${bCount}`);
+    } catch (err) {
+      this.log('Failed to initialize due to: ' + err);
+    }
   }
+
+  async componentWillUnmount() {
+    this.synchronizer.stop();
+  }
+
+  onShieldedBalanceChanged(walletBalance) {
+    this.setState({totalBalance: walletBalance.totalZatoshi});
+  }
+  onStatusChanged(status) {
+    // TODO: map from status.name to SynchronizerStatus enum (using SynchronizerStatus[status.name] doesn't work)
+    this.setState({status: status.name});
+  }
+  onTransactionsChanged(event) {
+    this.setState({transactionCount: event.transactionCount});
+  }
+  onPendingTransactionUpdated(tx) {
+    // if has error, show it... it will have an error but also handle the other case
+    if (tx.errorMessage && tx.errorMessage.length !== 0) {
+      this.log(`error submitting tx: ${tx.errorMessage}`);
+    } else {
+      if (tx.submitAttempts < 1) {
+        // when you see this log output, you know the capacity to send transactions is there. The spend key is correct but everything else is intentionally invalid.
+        this.log('placeholder transaction created!');
+      } else {
+        this.log(`pending tx updated: ${JSON.stringify(tx)}`);
+      }
+    }
+  }
+  onUpdate(event) {
+    this.setState({
+      updateEvent: {
+        isDownloading: event.isDownloading,
+        isScanning: event.isScanning,
+        lastDownloadedHeight: event.lastDownloadedHeight,
+        lastScannedHeight: event.lastScannedHeight,
+        scanProgress: event.scanProgress,
+        networkBlockHeight: event.networkBlockHeight,
+      },
+    });
+  }
+
   render() {
     return (
       <>
@@ -52,9 +161,24 @@ class App extends Component {
         <SafeAreaView>
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
-            style={styles.scrollView}
-          />
-          <Text>{this.state.textString}</Text>
+            style={styles.scrollView}>
+            <Text>{this.state.textString}</Text>
+            <Text>status: {this.state.status}</Text>
+            <Text>transaction count: {this.state.transactionCount}</Text>
+            <Text>
+              shielded balance (zatoshi): {this.state.totalBalance + '\n'}
+            </Text>
+            <Text>
+              network height: {this.state.updateEvent.networkBlockHeight}
+            </Text>
+            <Text>scan progress: {this.state.updateEvent.scanProgress}%</Text>
+            <Text>
+              downloaded height: {this.state.updateEvent.lastDownloadedHeight}
+            </Text>
+            <Text>
+              scanned height: {this.state.updateEvent.lastScannedHeight}
+            </Text>
+          </ScrollView>
         </SafeAreaView>
       </>
     );
