@@ -107,6 +107,8 @@ class App extends Component {
         await synchronizer.sendTestTransaction(spendingKey, zAddr);
         this.log('done sending');
       }
+      const bCount = await synchronizer.getBlockCount();
+      this.log(`testing custom database!  block count: ${bCount}`);
     } catch (err) {
       this.log('Failed to initialize due to: ' + err);
     }
