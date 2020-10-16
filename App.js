@@ -127,7 +127,17 @@ class App extends Component {
     this.setState({transactionCount: event.transactionCount});
   }
   onPendingTransactionUpdated(tx) {
-    this.log(`pending tx updated: ${JSON.stringify(tx)}`);
+    // if has error, show it... it will have an error but also handle the other case
+    if (tx.errorMessage && tx.errorMessage.length !== 0) {
+      this.log(`error submitting tx: ${tx.errorMessage}`);
+    } else {
+      if (tx.submitAttempts < 1) {
+        // when you see this log output, you know the capacity to send transactions is there. The spend key is correct but everything else is intentionally invalid.
+        this.log('placeholder transaction created!');
+      } else {
+        this.log(`pending tx updated: ${JSON.stringify(tx)}`);
+      }
+    }
   }
   onUpdate(event) {
     this.setState({
