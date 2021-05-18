@@ -15,7 +15,7 @@ import {
   Text,
   StatusBar,
 } from 'react-native';
-import {KeyTool, makeSynchronizer} from 'react-native-zcash';
+import {KeyTool, makeSynchronizer, AddressTool} from 'react-native-zcash';
 
 import {
   Header,
@@ -31,9 +31,11 @@ class App extends Component {
     this.setState({textString: this.state.textString + arg + '\n'});
   }
   async componentDidMount() {
-    const seedBytesHex = '0xafdfcbe42f2bdf';
+    // console.log(synchronizer)
+    const seedBytesHex =
+      '0xafdfcbe42f2bdfafdfcbe42f2bdfafdfcbe42f2bdfafdfcbe42f2bdffabcabcd';
     this.log(`seedBytesHex ${seedBytesHex}`);
-    const viewKey = await KeyTool.deriveViewKey(seedBytesHex);
+    const viewKey = await KeyTool.deriveViewingKey(seedBytesHex);
     this.log(`viewKey ${viewKey}`);
     const initializer = {
       host: 'zcash.edge.app',
@@ -42,8 +44,26 @@ class App extends Component {
       birthdayHeight: 1000,
     };
     const synchronizer = await makeSynchronizer(initializer);
-    const shieldedBalance = await synchronizer.getShieldedBalance();
-    this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
+    const spendKey = await KeyTool.deriveSpendingKey(seedBytesHex);
+    this.log(`spendKey ${spendKey}`);
+
+    // const shieldedBalance = await synchronizer.getShieldedBalance();
+    // this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
+    try {
+      const transparentAddress = await AddressTool.deriveTransparentAddress(
+        viewKey,
+      );
+      this.log('transparentAddress', transparentAddress);
+    } catch (e) {
+      this.log(e);
+    }
+
+    // const shieldedAddress = await AddressTool.deriveShieldedAddress(viewKey);
+    // this.log(`shieldAddress ${shieldedAddress}`);
+    // const validShieldedAddress = await AddressTool.isValidShieldedAddress(
+    //   shieldedAddress,
+    // );
+    // this.log(`validShieldedAddress ${validShieldedAddress}`);
   }
   render() {
     return (
