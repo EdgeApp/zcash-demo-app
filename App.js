@@ -43,20 +43,20 @@ class App extends Component {
       fullViewingKey: viewKey,
       birthdayHeight: 1000,
     };
-    const synchronizer = await makeSynchronizer(initializer);
-    const spendKey = await KeyTool.deriveSpendingKey(seedBytesHex);
-    this.log(`spendKey ${spendKey}`);
+    // const synchronizer = await makeSynchronizer(initializer);
+    // const spendKey = await KeyTool.deriveSpendingKey(seedBytesHex);
+    // this.log(`spendKey ${spendKey}`);
 
-    // const shieldedBalance = await synchronizer.getShieldedBalance();
-    // this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
-    try {
-      const transparentAddress = await AddressTool.deriveTransparentAddress(
-        viewKey,
-      );
-      this.log('transparentAddress', transparentAddress);
-    } catch (e) {
-      this.log(e);
-    }
+    // // const shieldedBalance = await synchronizer.getShieldedBalance();
+    // // this.log(`shieldedBalance: ${JSON.stringify(shieldedBalance)}`);
+    // try {
+    //   const transparentAddress = await AddressTool.deriveTransparentAddress(
+    //     viewKey,
+    //   );
+    //   this.log('transparentAddress', transparentAddress);
+    // } catch (e) {
+    //   this.log(e);
+    // }
 
     // const shieldedAddress = await AddressTool.deriveShieldedAddress(viewKey);
     // this.log(`shieldAddress ${shieldedAddress}`);
